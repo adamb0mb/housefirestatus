@@ -249,6 +249,12 @@
   }
 
   function updateMap(geo, status) {
+    // #map is inside a section that starts out hidden, so Leaflet computes its
+    // size as 0x0 at construction time and never rechecks it on its own —
+    // hence the "stuck on one tile in the corner" symptom. invalidateSize()
+    // forces it to re-measure now that the section is visible.
+    map.invalidateSize();
+
     evacLayer.clearLayers();
     perimeterLayer.clearLayers();
     nearbyFireLayer.clearLayers();
