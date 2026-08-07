@@ -1,4 +1,5 @@
 import { PROVIDERS, SHELTERS, AUTHORITATIVE_LINKS } from "./data.js";
+import { getNearbyAvistaOutages } from "./kubra.js";
 
 const CENSUS_GEOCODE_URL = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
@@ -287,7 +288,7 @@ async function handleStatus(url, ctx) {
     spatialRel: "esriSpatialRelIntersects"
   };
 
-  const [spokaneEvacGeoJson, stevensEvacGeoJson, perimeterHitGeoJson, nearbyFireGeoJson] = await Promise.all([
+  const [spokaneEvacGeoJson, stevensEvacGeoJson, perimeterHitGeoJson, nearbyFireGeoJson, avistaPower] = await Promise.all([
     queryArcGIS(SPOKANE_EVAC, {
       ...pointParams,
       outFields: "IncidentType,IncidentName,FireDistrict,EvacStatus,EvacLevel,BoundaryDesc,PrimaryVoiceMsg,PublicAppMsg"
@@ -306,7 +307,8 @@ async function handleStatus(url, ctx) {
       units: "esriSRUnit_StatuteMile",
       outFields: "poly_IncidentName,attr_PercentContained,poly_GISAcres,attr_FireDiscoveryDateTime",
       resultRecordCount: "10"
-    })
+    }),
+    getNearbyAvistaOutages(lat, lng, USER_AGENT, ctx).catch(() => ({ available: false, outages: [] }))
   ]);
 
   const evacFeatures = [...decodeSpokaneEvacFeatures(spokaneEvacGeoJson).features, ...stevensEvacGeoJson.features];
@@ -355,6 +357,13 @@ async function handleStatus(url, ctx) {
     nearbyFiresGeoJson: {
       type: "FeatureCollection",
       features: nearbyFireGeoJson.features.filter((f) => !insidePerimeterNames.has(f.properties.poly_IncidentName))
+    },
+    power: {
+      provider: "Avista",
+      // Live from Avista's own public outage map data (KUBRA Storm Center) — not a
+      // guess. available:false means that feed couldn't be reached just now.
+      available: avistaPower.available,
+      outages: avistaPower.outages
     },
     generatedAt: new Date().toISOString()
   };

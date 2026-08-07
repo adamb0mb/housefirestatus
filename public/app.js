@@ -143,7 +143,52 @@
     return actions.join("");
   }
 
-  function renderUtilities(providers) {
+  function formatDateTime(iso) {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit", month: "short", day: "numeric" });
+  }
+
+  // Avista's power status is checked live (see /api/status -> power), pulled straight
+  // from Avista's own public outage map data — so we render it as an automatic result,
+  // not another link for the user to go click through.
+  function renderPowerLiveBlock(power) {
+    if (!power || !power.available) {
+      return `<div class="live-status unknown">
+        <strong>Live outage check unavailable right now</strong>
+        <p class="meta">Couldn't reach Avista's live outage feed just now — use the links below to check directly.</p>
+      </div>`;
+    }
+    if (power.outages.length === 0) {
+      return `<div class="live-status ok">
+        <strong>✓ No outages currently reported by Avista near this address</strong>
+        <p class="meta">Checked live against Avista's public outage map.</p>
+      </div>`;
+    }
+    const nearest = power.outages[0];
+    const isAtAddress = nearest.distanceMiles <= 0.6;
+    const items = power.outages
+      .slice(0, 3)
+      .map(
+        (o) => `
+      <div class="outage-item">
+        <div class="meta">${o.distanceMiles} mi away${o.customersAffected != null ? ` · ${o.customersAffected} customer${o.customersAffected === 1 ? "" : "s"} affected` : ""}</div>
+        ${o.cause ? `<div class="meta">Cause: ${escapeHtml(o.cause)}</div>` : ""}
+        ${o.crewStatus ? `<div class="meta">Crew status: ${escapeHtml(o.crewStatus)}</div>` : ""}
+        ${o.etr ? `<div class="meta">Estimated restoration: ${escapeHtml(formatDateTime(o.etr))}</div>` : ""}
+      </div>`
+      )
+      .join("");
+    return `<div class="live-status ${isAtAddress ? "danger" : "warn"}">
+      <strong>${isAtAddress ? "⚠ Outage reported at or very near this address" : `⚠ Nearest reported outage: ${nearest.distanceMiles} mi away`}</strong>
+      ${items}
+    </div>`;
+  }
+
+  const LIVE_CHECK_CATEGORIES = new Set(["Electricity"]);
+
+  function renderUtilities(providers, status) {
     utilitiesContent.innerHTML = "";
     const groups = new Map();
     for (const p of providers) {
@@ -153,6 +198,11 @@
     for (const [label, list] of groups) {
       const groupEl = document.createElement("div");
       groupEl.className = "provider-group";
+      const isLive = LIVE_CHECK_CATEGORIES.has(label);
+      const liveBlock = isLive && status ? renderPowerLiveBlock(status.power) : "";
+      const badge = isLive
+        ? '<span class="badge badge-live">Live check</span>'
+        : '<span class="badge badge-manual">No live data — check manually</span>';
       const cards = list
         .map(
           (p) => `
@@ -165,7 +215,7 @@
         </div>`
         )
         .join("");
-      groupEl.innerHTML = `<h3>${escapeHtml(label)}</h3>${cards}`;
+      groupEl.innerHTML = `<h3>${escapeHtml(label)} ${badge}</h3>${liveBlock}${cards}`;
       utilitiesContent.appendChild(groupEl);
     }
   }
@@ -259,10 +309,10 @@
     }
   }
 
-  async function loadStaticData() {
+  async function loadStaticData(status) {
     if (!providersCache) providersCache = (await fetchJson("/api/providers")).providers;
     if (!sheltersCache) sheltersCache = await fetchJson("/api/shelters");
-    renderUtilities(providersCache);
+    renderUtilities(providersCache, status);
     renderShelters(sheltersCache);
     renderShelterMarkers(sheltersCache);
   }
@@ -276,7 +326,7 @@
     resultsSection.hidden = true;
     try {
       const status = await fetchJson(`/api/status?lat=${geo.lat}&lng=${geo.lng}`);
-      await loadStaticData();
+      await loadStaticData(status);
       resultsSection.hidden = false;
       renderBanner(status);
       renderEvac(status);

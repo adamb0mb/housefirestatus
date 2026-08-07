@@ -195,7 +195,40 @@ button {
   letter-spacing: 0.04em;
   color: var(--muted);
   margin: 0 0 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
+.badge {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.badge-live { background: #dff3e1; color: #1e6b2a; border-color: #b7e2bb; }
+.badge-manual { background: #f1efe9; color: var(--muted); border-color: var(--line); }
+
+.live-status {
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 0.6rem;
+  border: 1px solid transparent;
+}
+.live-status strong { display: block; margin-bottom: 0.25rem; }
+.live-status .meta { color: inherit; opacity: 0.85; font-size: 0.85rem; }
+.live-status.ok { background: #e9f5ea; color: #1e5e22; border-color: #bfe3c2; }
+.live-status.unknown { background: #f1efe9; color: var(--muted); border-color: var(--line); }
+.live-status.warn { background: #fff6d9; color: #7a5c00; border-color: #f0dd8f; }
+.live-status.danger { background: #fde0df; color: #8c1015; border-color: #f6b3b0; }
+.live-status .outage-item {
+  padding: 0.4rem 0;
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+.live-status .outage-item:first-of-type { border-top: 1px solid rgba(0,0,0,0.15); margin-top: 0.3rem; }
 .provider-card {
   border: 1px solid var(--line);
   border-radius: 8px;
