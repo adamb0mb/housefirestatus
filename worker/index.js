@@ -151,6 +151,79 @@ async function geocodeWithNominatim(address) {
   };
 }
 
+// Nominatim's free-text search returns one hit per named point of interest, so a
+// shopping center with a dozen storefronts at the same street number comes back as
+// a dozen near-duplicate results ("Gap, 808 W Main Ave", "Panda Express, 808 W Main
+// Ave", ...). Build a plain "<number> <street>, <city>, <state> <zip>" label from
+// the structured address instead, then dedupe by that label and put real street
+// addresses ahead of bare POI names.
+function buildSuggestionLabel(m) {
+  const a = m.address || {};
+  const city = a.city || a.town || a.village || a.hamlet || a.county;
+  const state = a.state_code || a.state || "";
+  if (a.house_number && a.road) {
+    return [
+      `${a.house_number} ${a.road}`,
+      [city, [state, a.postcode].filter(Boolean).join(" ")].filter(Boolean).join(", ")
+    ]
+      .filter(Boolean)
+      .join(", ");
+  }
+  return m.display_name;
+}
+
+function dedupeAndRankSuggestions(rawResults) {
+  const seen = new Set();
+  const deduped = [];
+  for (const m of rawResults) {
+    const label = buildSuggestionLabel(m);
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push({
+      label,
+      lat: parseFloat(m.lat),
+      lng: parseFloat(m.lon),
+      isStreetAddress: Boolean(m.address?.house_number && m.address?.road)
+    });
+  }
+  deduped.sort((a, b) => Number(b.isStreetAddress) - Number(a.isStreetAddress));
+  return deduped.map(({ label, lat, lng }) => ({ label, lat, lng }));
+}
+
+async function handleSuggest(url, ctx) {
+  const q = (url.searchParams.get("q") || "").trim();
+  if (q.length < 4) return jsonResponse({ suggestions: [] }, 200, { "Cache-Control": "no-store" });
+
+  const cache = caches.default;
+  const cacheKey = new Request(`https://cache.internal/suggest?q=${encodeURIComponent(q.toLowerCase())}`);
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
+
+  // Biased (not restricted — bounded=0) toward the Spokane region so a partial
+  // address like "123 main" surfaces local candidates first.
+  const nomUrl = `${NOMINATIM_URL}?q=${encodeURIComponent(
+    q
+  )}&format=json&addressdetails=1&countrycodes=us&limit=10&viewbox=-118.3,48.1,-116.8,47.0&bounded=0`;
+
+  let suggestions = [];
+  try {
+    const resp = await fetch(nomUrl, { headers: { "User-Agent": USER_AGENT } });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (Array.isArray(data)) {
+        suggestions = dedupeAndRankSuggestions(data).slice(0, 6);
+      }
+    }
+  } catch (err) {
+    suggestions = [];
+  }
+
+  const response = jsonResponse({ suggestions }, 200, { "Cache-Control": "public, max-age=120" });
+  ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  return response;
+}
+
 async function handleGeocode(url, ctx) {
   const q = (url.searchParams.get("q") || "").trim();
   if (!q) return jsonResponse({ error: "Missing 'q' address parameter" }, 400);
@@ -337,6 +410,7 @@ export default {
     }
 
     try {
+      if (url.pathname === "/api/suggest") return await handleSuggest(url, ctx);
       if (url.pathname === "/api/geocode") return await handleGeocode(url, ctx);
       if (url.pathname === "/api/status") return await handleStatus(url, ctx);
       if (url.pathname === "/api/parcel-lookup") return await handleParcelLookup(url);

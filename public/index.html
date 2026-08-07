@@ -27,9 +27,22 @@
 
   <section class="search-card" aria-label="Address search">
     <form id="search-form" autocomplete="off">
-      <label for="address-input">House / property address</label>
+      <label for="address-input">Enter your address — status checks automatically</label>
       <div class="search-row">
-        <input id="address-input" name="address" type="text" placeholder="e.g. 808 W Spokane Falls Blvd, Spokane, WA" required />
+        <div class="combobox-wrap">
+          <input
+            id="address-input"
+            name="address"
+            type="text"
+            role="combobox"
+            aria-expanded="false"
+            aria-controls="address-suggestions"
+            aria-autocomplete="list"
+            placeholder="Start typing your address…"
+            required
+          />
+          <ul id="address-suggestions" class="suggestions" role="listbox" hidden></ul>
+        </div>
         <button type="submit" id="search-btn">Check status</button>
         <button type="button" id="locate-btn" title="Use my current location">📍</button>
       </div>

@@ -79,8 +79,12 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 3rem; }
   gap: 0.5rem;
   flex-wrap: wrap;
 }
-#address-input {
+.combobox-wrap {
+  position: relative;
   flex: 1 1 260px;
+}
+#address-input {
+  width: 100%;
   padding: 0.65rem 0.75rem;
   font-size: 1rem;
   border: 1px solid #c9c2b6;
@@ -90,6 +94,44 @@ main.wrap { padding-top: 1.25rem; padding-bottom: 3rem; }
   outline: 3px solid #8fb8ff;
   outline-offset: 1px;
 }
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.suggestions li {
+  padding: 0.55rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+.suggestions li.active,
+.suggestions li:hover {
+  background: #f1efe9;
+}
+.suggestions li .primary { display: block; font-weight: 600; }
+.suggestions li .secondary { display: block; color: var(--muted); font-size: 0.82rem; }
+.suggestions li.loading,
+.suggestions li.empty {
+  cursor: default;
+  color: var(--muted);
+  font-style: italic;
+}
+.suggestions li.loading:hover,
+.suggestions li.empty:hover { background: transparent; }
 button {
   cursor: pointer;
   border: none;
@@ -213,4 +255,5 @@ button {
   .provider-card .actions a { background: #2a251f; color: var(--ink); }
   .provider-card .actions a:hover { background: #352f26; }
   .emergency-bar { background: #3a2f10; color: #f3d98b; border-color: #5c4a17; }
+  .suggestions li.active, .suggestions li:hover { background: #2a251f; }
 }

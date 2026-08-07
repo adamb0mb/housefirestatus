@@ -3,6 +3,7 @@
 
   const form = document.getElementById("search-form");
   const input = document.getElementById("address-input");
+  const suggestions = document.getElementById("address-suggestions");
   const errorEl = document.getElementById("search-error");
   const searchBtn = document.getElementById("search-btn");
   const locateBtn = document.getElementById("locate-btn");
@@ -266,15 +267,16 @@
     renderShelterMarkers(sheltersCache);
   }
 
-  async function runSearch(addressText) {
+  // Shared by the "pick a suggestion", "press enter / click Check status", and
+  // "use my location" paths — takes a resolved { lat, lng, matchedAddress } and
+  // runs the status check + render.
+  async function runStatusForGeo(geo) {
     clearError();
     setLoading(true);
     resultsSection.hidden = true;
     try {
-      const geo = await fetchJson(`/api/geocode?q=${encodeURIComponent(addressText)}`);
       const status = await fetchJson(`/api/status?lat=${geo.lat}&lng=${geo.lng}`);
       await loadStaticData();
-
       resultsSection.hidden = false;
       renderBanner(status);
       renderEvac(status);
@@ -288,31 +290,145 @@
     }
   }
 
-  async function runSearchFromCoords(lat, lng) {
+  async function runSearch(addressText) {
     clearError();
     setLoading(true);
-    resultsSection.hidden = true;
     try {
-      const status = await fetchJson(`/api/status?lat=${lat}&lng=${lng}`);
-      await loadStaticData();
-      const geo = { lat, lng, matchedAddress: "Your current location" };
-      resultsSection.hidden = false;
-      renderBanner(status);
-      renderEvac(status);
-      renderFires(status);
-      updateMap(geo, status);
-      resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      const geo = await fetchJson(`/api/geocode?q=${encodeURIComponent(addressText)}`);
+      await runStatusForGeo(geo);
     } catch (err) {
-      showError(err.message || "Something went wrong.");
-    } finally {
       setLoading(false);
+      showError(err.message || "Could not find that address. Try adding the city, or pick a suggestion from the dropdown.");
     }
   }
+
+  function runSearchFromCoords(lat, lng) {
+    runStatusForGeo({ lat, lng, matchedAddress: "Your current location" });
+  }
+
+  // ---- Address autocomplete (single-box flow: type, pick, done) ----
+  let suggestItems = [];
+  let activeSuggestIndex = -1;
+  let suggestDebounce = null;
+  let suggestRequestId = 0;
+
+  function closeSuggestions() {
+    suggestions.hidden = true;
+    suggestions.innerHTML = "";
+    suggestItems = [];
+    activeSuggestIndex = -1;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+  }
+
+  function renderSuggestionList(items, state) {
+    suggestions.innerHTML = "";
+    if (state === "loading") {
+      suggestions.innerHTML = '<li class="loading">Searching…</li>';
+      suggestions.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+      return;
+    }
+    if (!items.length) {
+      suggestions.innerHTML = '<li class="empty">No matches — keep typing, or press Enter to search anyway.</li>';
+      suggestions.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+      return;
+    }
+    items.forEach((item, i) => {
+      const li = document.createElement("li");
+      li.id = `suggestion-${i}`;
+      li.setAttribute("role", "option");
+      const parts = item.label.split(",");
+      li.innerHTML = `<span class="primary">${escapeHtml(parts[0])}</span><span class="secondary">${escapeHtml(parts.slice(1).join(",").trim())}</span>`;
+      li.addEventListener("mousedown", (e) => {
+        // mousedown (not click) so it fires before the input's blur handler closes the list
+        e.preventDefault();
+        chooseSuggestion(i);
+      });
+      suggestions.appendChild(li);
+    });
+    suggestions.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  }
+
+  function setActiveSuggestion(index) {
+    const options = suggestions.querySelectorAll('li[role="option"]');
+    options.forEach((el) => el.classList.remove("active"));
+    activeSuggestIndex = index;
+    if (index >= 0 && options[index]) {
+      options[index].classList.add("active");
+      options[index].scrollIntoView({ block: "nearest" });
+      input.setAttribute("aria-activedescendant", options[index].id);
+    } else {
+      input.removeAttribute("aria-activedescendant");
+    }
+  }
+
+  function chooseSuggestion(index) {
+    const item = suggestItems[index];
+    if (!item) return;
+    input.value = item.label;
+    closeSuggestions();
+    runStatusForGeo({ lat: item.lat, lng: item.lng, matchedAddress: item.label, source: "suggest" });
+  }
+
+  async function fetchSuggestions(q) {
+    const myRequestId = ++suggestRequestId;
+    renderSuggestionList([], "loading");
+    try {
+      const data = await fetchJson(`/api/suggest?q=${encodeURIComponent(q)}`);
+      if (myRequestId !== suggestRequestId) return; // a newer keystroke superseded this request
+      suggestItems = data.suggestions || [];
+      renderSuggestionList(suggestItems, "done");
+    } catch (err) {
+      if (myRequestId !== suggestRequestId) return;
+      suggestItems = [];
+      renderSuggestionList([], "done");
+    }
+  }
+
+  input.addEventListener("input", () => {
+    const val = input.value.trim();
+    clearTimeout(suggestDebounce);
+    if (val.length < 4) {
+      closeSuggestions();
+      return;
+    }
+    suggestDebounce = setTimeout(() => fetchSuggestions(val), 300);
+  });
+
+  input.addEventListener("keydown", (e) => {
+    const optionCount = suggestItems.length;
+    if (suggestions.hidden || optionCount === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSuggestion((activeSuggestIndex + 1) % optionCount);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSuggestion((activeSuggestIndex - 1 + optionCount) % optionCount);
+    } else if (e.key === "Enter") {
+      if (activeSuggestIndex >= 0) {
+        e.preventDefault();
+        chooseSuggestion(activeSuggestIndex);
+      } else {
+        closeSuggestions();
+      }
+    } else if (e.key === "Escape") {
+      closeSuggestions();
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    // Slight delay so a suggestion's mousedown handler still fires first.
+    setTimeout(closeSuggestions, 100);
+  });
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const val = input.value.trim();
     if (!val) return;
+    closeSuggestions();
     runSearch(val);
   });
 
@@ -322,9 +438,13 @@
       return;
     }
     clearError();
+    setLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => runSearchFromCoords(pos.coords.latitude, pos.coords.longitude),
-      () => showError("Could not get your location. Please enter an address instead.")
+      () => {
+        setLoading(false);
+        showError("Could not get your location. Please enter an address instead.");
+      }
     );
   });
 
