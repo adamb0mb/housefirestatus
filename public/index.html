@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>House Fire Status — Spokane Wildfire Utility &amp; Evacuation Check</title>
+<meta name="description" content="Check evacuation zone, wildfire perimeter, and utility (power, gas, internet, cable, phone) status for an address in the Spokane, WA area." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>" />
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <h1>🔥 House Fire Status</h1>
+    <p class="tagline">Evacuation, wildfire, and utility status for an address near the Spokane Complex fires</p>
+  </div>
+</header>
+
+<div class="emergency-bar">
+  If you are in immediate danger, call <a href="tel:911">911</a>. This site is not an official emergency service — always follow instructions from law enforcement, fire officials, and Spokane County Emergency Management.
+</div>
+
+<main id="main" class="wrap">
+
+  <section class="search-card" aria-label="Address search">
+    <form id="search-form" autocomplete="off">
+      <label for="address-input">House / property address</label>
+      <div class="search-row">
+        <input id="address-input" name="address" type="text" placeholder="e.g. 808 W Spokane Falls Blvd, Spokane, WA" required />
+        <button type="submit" id="search-btn">Check status</button>
+        <button type="button" id="locate-btn" title="Use my current location">📍</button>
+      </div>
+      <p id="search-error" class="error" role="alert" hidden></p>
+    </form>
+  </section>
+
+  <section id="results" hidden>
+    <div id="status-banner" class="status-banner" role="status"></div>
+
+    <div class="layout">
+      <div id="map" aria-label="Map showing the address, evacuation zone, and fire perimeter"></div>
+
+      <div class="panels">
+        <section class="panel" id="evac-panel">
+          <h2>Evacuation status</h2>
+          <div id="evac-content"></div>
+        </section>
+
+        <section class="panel" id="fire-panel">
+          <h2>Nearby fire activity</h2>
+          <div id="fire-content"></div>
+        </section>
+
+        <section class="panel" id="utilities-panel">
+          <h2>Utilities</h2>
+          <p class="panel-note">There is no live public API for internet/cable/phone outages, so these link straight to each provider's own status checker.</p>
+          <div id="utilities-content"></div>
+        </section>
+
+        <section class="panel" id="shelters-panel">
+          <h2>Shelters &amp; official info</h2>
+          <div id="shelters-content"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <section id="intro" class="panel">
+    <h2>What this tool does</h2>
+    <ul>
+      <li>Geocodes the address you enter (US Census Bureau geocoder, with an OpenStreetMap fallback).</li>
+      <li>Checks it against live, official evacuation zone data from Spokane &amp; Stevens County emergency management, and current fire perimeters from the National Interagency Fire Center (NIFC).</li>
+      <li>Lists the utilities that typically serve the Spokane area (Avista for power/gas; Comcast, Spectrum, TDS, Quantum Fiber, Ziply Fiber for internet/cable/phone) with direct links to check live status, since those providers don't publish open outage APIs.</li>
+    </ul>
+    <p class="panel-note">Built for people displaced by the 2026 Spokane Complex wildfires (Old Trails, Autumn Lane, and Fairview fires). Data can lag reality during a fast-moving incident — always double check with 911, InciWeb, or Spokane County before making decisions.</p>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Not an official emergency service. Data sources: US Census Geocoder, OpenStreetMap Nominatim, NIFC WFIGS, Spokane &amp; Stevens County GIS, Washington DNR.</p>
+  </div>
+</footer>
+
+<script src="/vendor/leaflet/leaflet.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

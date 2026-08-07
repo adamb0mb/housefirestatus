@@ -1,0 +1,14 @@
+{
+  "name": "housefirestatus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Check utility status (power, gas, internet, cable, phone) and wildfire/evacuation status for an address in the Spokane, WA area.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "wrangler": "^4.4.0"
+  }
+}
