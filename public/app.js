@@ -186,7 +186,40 @@
     </div>`;
   }
 
-  const LIVE_CHECK_CATEGORIES = new Set(["Electricity"]);
+  // TDS's outage layer is checked live the same way Avista's is (see /api/status ->
+  // internet.tds) — a polygon feed TDS itself publishes, not a guess.
+  function renderTdsLiveBlock(tds) {
+    if (!tds || tds.outages.length === 0) {
+      return `<div class="live-status ok">
+        <strong>✓ No outages currently reported by TDS near this address</strong>
+        <p class="meta">Checked live against TDS's public outage map data.</p>
+      </div>`;
+    }
+    const nearest = tds.outages[0];
+    const isAtAddress = nearest.distanceMiles === 0;
+    const items = tds.outages
+      .slice(0, 3)
+      .map(
+        (o) => `
+      <div class="outage-item">
+        <div class="meta">${o.distanceMiles === 0 ? "Covers this address" : `${o.distanceMiles} mi away`}${o.customersAffected != null ? ` · ~${o.customersAffected} customers affected` : ""}</div>
+        ${o.productsImpacted ? `<div class="meta">Products impacted: ${escapeHtml(o.productsImpacted)}</div>` : ""}
+        ${o.updatedAt ? `<div class="meta">Last updated: ${escapeHtml(formatDateTime(o.updatedAt))}</div>` : ""}
+      </div>`
+      )
+      .join("");
+    return `<div class="live-status ${isAtAddress ? "danger" : "warn"}">
+      <strong>${isAtAddress ? "⚠ Outage area covers this address" : `⚠ Nearest reported outage: ${nearest.distanceMiles} mi away`}</strong>
+      ${items}
+    </div>`;
+  }
+
+  // Providers with a real live check, keyed by their id in worker/data.js, mapped to
+  // a function that renders that check's result from the /api/status response.
+  const LIVE_CHECK_RENDERERS = {
+    "avista-electric": (status) => renderPowerLiveBlock(status.power),
+    "tds-telecom": (status) => renderTdsLiveBlock(status.internet?.tds)
+  };
 
   function renderUtilities(providers, status) {
     utilitiesContent.innerHTML = "";
@@ -198,24 +231,26 @@
     for (const [label, list] of groups) {
       const groupEl = document.createElement("div");
       groupEl.className = "provider-group";
-      const isLive = LIVE_CHECK_CATEGORIES.has(label);
-      const liveBlock = isLive && status ? renderPowerLiveBlock(status.power) : "";
-      const badge = isLive
-        ? '<span class="badge badge-live">Live check</span>'
-        : '<span class="badge badge-manual">No live data — check manually</span>';
       const cards = list
-        .map(
-          (p) => `
+        .map((p) => {
+          const liveRenderer = LIVE_CHECK_RENDERERS[p.id];
+          const badge =
+            liveRenderer && status
+              ? '<span class="badge badge-live">Live check</span>'
+              : '<span class="badge badge-manual">No live data — check manually</span>';
+          const liveBlock = liveRenderer && status ? liveRenderer(status) : "";
+          return `
         <div class="provider-card">
-          <div class="name">${escapeHtml(p.name)}</div>
+          <div class="name">${escapeHtml(p.name)} ${badge}</div>
           <div class="desc">${escapeHtml(p.description || "")}</div>
+          ${liveBlock}
           <div class="actions">${providerActions(p)}</div>
           ${p.smsInfo ? `<div class="notes">${escapeHtml(p.smsInfo)}</div>` : ""}
           ${p.notes ? `<div class="notes">${escapeHtml(p.notes)}</div>` : ""}
-        </div>`
-        )
+        </div>`;
+        })
         .join("");
-      groupEl.innerHTML = `<h3>${escapeHtml(label)} ${badge}</h3>${liveBlock}${cards}`;
+      groupEl.innerHTML = `<h3>${escapeHtml(label)}</h3>${cards}`;
       utilitiesContent.appendChild(groupEl);
     }
   }

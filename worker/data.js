@@ -73,15 +73,6 @@ export const PROVIDERS = [
     reportOutagePhone: "1-866-699-4759"
   },
   {
-    id: "starlink",
-    category: "internet_backup",
-    categoryLabel: "Backup / Satellite Internet",
-    name: "Starlink",
-    description: "Satellite internet — useful as a backup when local wired/cell infrastructure is damaged.",
-    statusCheckUrl: "https://www.starlink.com/map",
-    notes: "Not dependent on local fiber/cable plant; can work from a damaged or rebuilt site as long as you have power (or a battery/generator) and sky view."
-  },
-  {
     id: "verizon-wireless",
     category: "cellular",
     categoryLabel: "Cellular",

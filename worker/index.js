@@ -19,6 +19,14 @@ const SPOKANE_EVAC =
 const STEVENS_EVAC =
   "https://services.arcgis.com/6E99CuinVlFZ3R03/arcgis/rest/services/Evacuation_ViewLayer/FeatureServer/0/query";
 
+// TDS Telecom's outage checker (tdstelecom.com/support/outage.html) is an ArcGIS JS
+// app; its compiled bundle references this hosted "OUTAGE_FOOTPRINT" layer directly,
+// and it's queryable with no token — the same public-layer pattern as the county
+// evacuation zones above, just from a different publisher (Esri's packaged "ArcGIS
+// Solutions for Utilities" public-outage template, which TDS deployed as-is).
+const TDS_OUTAGES =
+  "https://utility.arcgis.com/usrsvcs/servers/a5687c9b850b418381e3fe9fecac53c9/rest/services/AGOL/OUTAGE_FOOTPRINT/MapServer/0/query";
+
 const USER_AGENT =
   "HouseFireStatus/1.0 (humanitarian wildfire utility-status tool for Spokane WA; contact adam@phillabaum.us)";
 
@@ -255,6 +263,47 @@ async function handleGeocode(url, ctx) {
   return response;
 }
 
+function haversineMiles(lat1, lng1, lat2, lng2) {
+  const R = 3958.8;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+// Rough centroid (average of the outer ring's vertices) — good enough to show
+// "~N miles away" for a polygon we already know is nearby, not for precision work.
+function polygonCentroid(geometry) {
+  const ring = geometry?.type === "Polygon" ? geometry.coordinates?.[0] : geometry?.coordinates?.[0]?.[0];
+  if (!ring || !ring.length) return null;
+  let sx = 0;
+  let sy = 0;
+  for (const [x, y] of ring) {
+    sx += x;
+    sy += y;
+  }
+  return { lat: sy / ring.length, lng: sx / ring.length };
+}
+
+function describeTdsOutage(feature, lat, lng, isAtPoint) {
+  const p = feature.properties;
+  const centroid = polygonCentroid(feature.geometry);
+  const distanceMiles = isAtPoint
+    ? 0
+    : centroid
+    ? Math.round(haversineMiles(lat, lng, centroid.lat, centroid.lng) * 10) / 10
+    : null;
+  return {
+    id: p.OUTAGE_UUID,
+    distanceMiles,
+    customersAffected: p.OUTAGE_COUNT ?? null,
+    productsImpacted: p.PRODUCTS_IMPACTED ?? null,
+    reportedAt: p.OUTAGE_REPORT_DATE ? new Date(p.OUTAGE_REPORT_DATE).toISOString() : null,
+    updatedAt: p.OUTAGE_UPDATE_DATE ? new Date(p.OUTAGE_UPDATE_DATE).toISOString() : null
+  };
+}
+
 function pickWorst(zones) {
   let worst = null;
   let worstRank = -1;
@@ -288,7 +337,17 @@ async function handleStatus(url, ctx) {
     spatialRel: "esriSpatialRelIntersects"
   };
 
-  const [spokaneEvacGeoJson, stevensEvacGeoJson, perimeterHitGeoJson, nearbyFireGeoJson, avistaPower] = await Promise.all([
+  const tdsOutFields = "OUTAGE_UUID,OUTAGE_REPORT_DATE,OUTAGE_UPDATE_DATE,OUTAGE_COUNT,PRODUCTS_IMPACTED";
+
+  const [
+    spokaneEvacGeoJson,
+    stevensEvacGeoJson,
+    perimeterHitGeoJson,
+    nearbyFireGeoJson,
+    avistaPower,
+    tdsAtPointGeoJson,
+    tdsNearbyGeoJson
+  ] = await Promise.all([
     queryArcGIS(SPOKANE_EVAC, {
       ...pointParams,
       outFields: "IncidentType,IncidentName,FireDistrict,EvacStatus,EvacLevel,BoundaryDesc,PrimaryVoiceMsg,PublicAppMsg"
@@ -308,7 +367,18 @@ async function handleStatus(url, ctx) {
       outFields: "poly_IncidentName,attr_PercentContained,poly_GISAcres,attr_FireDiscoveryDateTime",
       resultRecordCount: "10"
     }),
-    getNearbyAvistaOutages(lat, lng, USER_AGENT, ctx).catch(() => ({ available: false, outages: [] }))
+    getNearbyAvistaOutages(lat, lng, USER_AGENT, ctx).catch(() => ({ available: false, outages: [] })),
+    queryArcGIS(TDS_OUTAGES, { ...pointParams, outFields: tdsOutFields }),
+    queryArcGIS(TDS_OUTAGES, {
+      geometry: `${lng},${lat}`,
+      geometryType: "esriGeometryPoint",
+      inSR: "4326",
+      spatialRel: "esriSpatialRelIntersects",
+      distance: "5",
+      units: "esriSRUnit_StatuteMile",
+      outFields: tdsOutFields,
+      resultRecordCount: "5"
+    })
   ]);
 
   const evacFeatures = [...decodeSpokaneEvacFeatures(spokaneEvacGeoJson).features, ...stevensEvacGeoJson.features];
@@ -319,6 +389,25 @@ async function handleStatus(url, ctx) {
   const nearbyFires = nearbyFireGeoJson.features
     .map((f) => f.properties)
     .filter((a) => !insidePerimeterNames.has(a.poly_IncidentName));
+
+  // This layer's f=geojson export repeats each outage once per polygon ring, so the
+  // same OUTAGE_UUID can come back many times for one real event — dedupe on it.
+  const dedupeByOutageId = (features) => {
+    const seen = new Set();
+    return features.filter((f) => {
+      const id = f.properties.OUTAGE_UUID;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  };
+
+  const tdsAtPoint = dedupeByOutageId(tdsAtPointGeoJson.features).map((f) => describeTdsOutage(f, lat, lng, true));
+  const tdsAtPointIds = new Set(tdsAtPoint.map((o) => o.id));
+  const tdsNearby = dedupeByOutageId(tdsNearbyGeoJson.features)
+    .filter((f) => !tdsAtPointIds.has(f.properties.OUTAGE_UUID))
+    .map((f) => describeTdsOutage(f, lat, lng, false));
+  const tdsOutages = [...tdsAtPoint, ...tdsNearby].sort((a, b) => a.distanceMiles - b.distanceMiles);
 
   const payload = {
     queried: { lat, lng },
@@ -364,6 +453,13 @@ async function handleStatus(url, ctx) {
       // guess. available:false means that feed couldn't be reached just now.
       available: avistaPower.available,
       outages: avistaPower.outages
+    },
+    internet: {
+      tds: {
+        provider: "TDS Telecom",
+        // Live from TDS's own public "OUTAGE_FOOTPRINT" ArcGIS layer.
+        outages: tdsOutages
+      }
     },
     generatedAt: new Date().toISOString()
   };

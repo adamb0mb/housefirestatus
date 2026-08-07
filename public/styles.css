@@ -236,7 +236,10 @@ button {
   margin-bottom: 0.5rem;
 }
 .provider-card:last-child { margin-bottom: 0; }
-.provider-card .name { font-weight: 700; }
+.provider-card .name { font-weight: 700; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.provider-card .name .badge { font-weight: 700; }
+.provider-card .desc + .live-status,
+.provider-card .live-status { margin-top: 0.5rem; }
 .provider-card .desc { color: var(--muted); font-size: 0.87rem; margin: 0.15rem 0 0.5rem; }
 .provider-card .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; font-size: 0.86rem; }
 .provider-card .actions a {
