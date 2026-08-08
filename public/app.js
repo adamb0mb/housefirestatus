@@ -416,8 +416,8 @@
   }
 
   async function loadStaticData(status) {
-    if (!providersCache) providersCache = (await fetchJson("/api/providers")).providers;
-    if (!sheltersCache) sheltersCache = await fetchJson("/api/shelters");
+    if (!providersCache) providersCache = (await fetchJson("api/providers")).providers;
+    if (!sheltersCache) sheltersCache = await fetchJson("api/shelters");
     renderUtilities(providersCache, status);
     renderShelters(sheltersCache);
     renderShelterMarkers(sheltersCache);
@@ -431,7 +431,7 @@
     setLoading(true);
     resultsSection.hidden = true;
     try {
-      const status = await fetchJson(`/api/status?lat=${geo.lat}&lng=${geo.lng}`);
+      const status = await fetchJson(`api/status?lat=${geo.lat}&lng=${geo.lng}`);
       await loadStaticData(status);
       resultsSection.hidden = false;
       renderBanner(status);
@@ -450,7 +450,7 @@
     clearError();
     setLoading(true);
     try {
-      const geo = await fetchJson(`/api/geocode?q=${encodeURIComponent(addressText)}`);
+      const geo = await fetchJson(`api/geocode?q=${encodeURIComponent(addressText)}`);
       await runStatusForGeo(geo);
     } catch (err) {
       setLoading(false);
@@ -533,7 +533,7 @@
     const myRequestId = ++suggestRequestId;
     renderSuggestionList([], "loading");
     try {
-      const data = await fetchJson(`/api/suggest?q=${encodeURIComponent(q)}`);
+      const data = await fetchJson(`api/suggest?q=${encodeURIComponent(q)}`);
       if (myRequestId !== suggestRequestId) return; // a newer keystroke superseded this request
       suggestItems = data.suggestions || [];
       renderSuggestionList(suggestItems, "done");

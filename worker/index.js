@@ -518,9 +518,35 @@ function handleShelters() {
   });
 }
 
+// When this Worker is reached via the phillabaum.us/spokanefire route (as opposed
+// to its own root-level workers.dev URL), every request arrives with this prefix.
+// We strip it before any internal routing/asset lookup so the app's own code never
+// has to know which base path it's being served from, and inject a matching
+// <base href> into HTML responses so the page's own relative asset/API requests
+// (see public/index.html and public/app.js, which deliberately use relative paths
+// for exactly this reason) come back around with the prefix intact.
+const PATH_PREFIX = "/spokanefire";
+
+function injectBaseHref(response, basePath) {
+  return new HTMLRewriter()
+    .on("head", {
+      element(el) {
+        el.prepend(`<base href="${basePath}">`, { html: true });
+      }
+    })
+    .transform(response);
+}
+
 export default {
   async fetch(request, env, ctx) {
+    let basePath = "/";
     const url = new URL(request.url);
+
+    if (url.pathname === PATH_PREFIX || url.pathname.startsWith(`${PATH_PREFIX}/`)) {
+      basePath = `${PATH_PREFIX}/`;
+      const inner = url.pathname.slice(PATH_PREFIX.length);
+      url.pathname = inner === "" ? "/" : inner;
+    }
 
     if (request.method === "OPTIONS") {
       return new Response(null, {
@@ -543,7 +569,15 @@ export default {
       return jsonResponse({ error: "Internal error", detail: String(err) }, 500);
     }
 
-    if (env.ASSETS) return env.ASSETS.fetch(request);
+    if (env.ASSETS) {
+      const assetRequest = basePath === "/" ? request : new Request(url.toString(), request);
+      const assetResponse = await env.ASSETS.fetch(assetRequest);
+      const contentType = assetResponse.headers.get("content-type") || "";
+      if (contentType.includes("text/html")) {
+        return injectBaseHref(assetResponse, basePath);
+      }
+      return assetResponse;
+    }
     return new Response("Not found", { status: 404 });
   }
 };

@@ -2,11 +2,19 @@ name = "housefirestatus"
 main = "worker/index.js"
 compatibility_date = "2026-08-01"
 
+# Served both from its own workers.dev URL (root-level) and from
+# phillabaum.us/spokanefire (path-scoped route on a zone that's shared with
+# other Workers) — see PATH_PREFIX handling in worker/index.js.
+routes = [
+  { pattern = "phillabaum.us/spokanefire*", zone_name = "phillabaum.us" }
+]
+
 [assets]
 directory = "./public"
 binding = "ASSETS"
-# API routes are handled by the Worker; everything else falls through to static files.
-run_worker_first = ["/api/*"]
+# The Worker needs to see every request, not just /api/*, so it can strip the
+# /spokanefire prefix (when present) before looking up static assets too.
+run_worker_first = true
 
 [observability]
 enabled = true
