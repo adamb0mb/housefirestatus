@@ -12,6 +12,11 @@ export const PROVIDERS = [
     description: "Sole electric utility serving Spokane County.",
     statusCheckUrl: "https://www.myavista.com/outages/outage-map-how-to",
     outageMapUrl: "https://outagemap.myavista.com/",
+    // Confirmed via response headers: outagemap.myavista.com sends
+    // `Content-Security-Policy: frame-ancestors *` and no X-Frame-Options —
+    // Avista deliberately allows this map to be embedded anywhere, so we can
+    // show their real live map in-page instead of only linking out to it.
+    embeddableMapUrl: "https://outagemap.myavista.com/",
     reportOutagePhone: "1-800-227-9187",
     smsInfo: "Text STAT to AVISTA (284782) for an outage status update on your address.",
     notes: "Avista does not publish a public real-time outage API, so live per-address status must be checked directly on their outage map or by phone/text."

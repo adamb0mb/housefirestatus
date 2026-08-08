@@ -93,6 +93,45 @@ page's bundled JS or embedded config for a `FeatureServer`/`MapServer` URL, a
 mapping-vendor bootstrap config, or an anonymous-session API base) should
 surface it.
 
+### Why we can't just proxy or embed the blocked ones
+
+Two follow-up questions worth answering explicitly, since we checked both:
+
+**"What if the request came from the user's real browser instead of our server?"**
+Checked via actual response headers, not assumed. It depends on *why* each one
+is blocked:
+- Xfinity's `outagedata/session` endpoint sends `Access-Control-Allow-Origin:
+  https://xfinity.com` — locked to their own origin. A browser enforces CORS
+  regardless of whose JavaScript is making the call, so client-side `fetch()`
+  from our page would be blocked identically to our server-side attempt. The
+  only way this endpoint is usable is from a page actually served by
+  xfinity.com itself.
+- Quantum Fiber's PerimeterX challenge is about the browser's fingerprint,
+  not where the request "comes from" — a real, non-headless browser
+  navigating xfinity.com/quantumfiber.com directly would likely pass it fine.
+  But that's just... the user visiting the provider's own site directly,
+  which is exactly what our "Check status" links already do (they open the
+  provider's real page in a new tab — not an iframe, not a proxied request,
+  so none of these restrictions apply to them at all).
+- By contrast, the data sources we *did* integrate (Kubra/Avista, TDS's
+  ArcGIS layer, WA DOH) all send permissive CORS headers
+  (`Access-Control-Allow-Origin: *`, or reflect back whatever origin asked) —
+  they were never restricted to begin with, which is a good chunk of why they
+  were reachable at all.
+
+**"Could we iframe any of these instead of linking out?"**
+Checked via `X-Frame-Options`/`Content-Security-Policy: frame-ancestors`
+response headers on each provider's actual tool:
+- **Avista's outage map explicitly allows it** (`frame-ancestors *`, no
+  `X-Frame-Options`) — so we now embed it directly. Each provider card with
+  an embeddable map has a "View live map" toggle that lazy-loads the
+  provider's real map in an iframe (see `embeddableMapUrl` in
+  `worker/data.js` and the toggle handler in `public/app.js`).
+- Xfinity (`SAMEORIGIN`), Spectrum (`DENY` / `frame-ancestors 'self'`),
+  Quantum Fiber (`frame-ancestors 'self'`), and Verizon
+  (`frame-ancestors 'self' *.verizon.com`) all explicitly forbid it —
+  confirmed, not assumed, and browsers enforce this unconditionally.
+
 ## Local development
 
 ```bash

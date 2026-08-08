@@ -276,12 +276,20 @@
               ? '<span class="badge badge-live">Live check</span>'
               : '<span class="badge badge-manual">No live data — check manually</span>';
           const liveBlock = liveRenderer && status ? liveRenderer(status) : "";
+          // A handful of providers explicitly allow embedding their own live map
+          // (checked via response headers, not assumed — see worker/data.js) —
+          // for those, offer it in-page instead of only linking out.
+          const mapToggle = p.embeddableMapUrl
+            ? `<button type="button" class="toggle-map-btn" data-embed-url="${escapeHtml(p.embeddableMapUrl)}" data-target="embed-${escapeHtml(p.id)}">View live map ▾</button>
+               <div class="embedded-map" id="embed-${escapeHtml(p.id)}" hidden></div>`
+            : "";
           return `
         <div class="provider-card">
           <div class="name">${escapeHtml(p.name)} ${badge}</div>
           <div class="desc">${escapeHtml(p.description || "")}</div>
           ${liveBlock}
           <div class="actions">${providerActions(p)}</div>
+          ${mapToggle}
           ${p.smsInfo ? `<div class="notes">${escapeHtml(p.smsInfo)}</div>` : ""}
           ${p.notes ? `<div class="notes">${escapeHtml(p.notes)}</div>` : ""}
         </div>`;
@@ -291,6 +299,26 @@
       utilitiesContent.appendChild(groupEl);
     }
   }
+
+  // Delegated so it works for cards re-rendered on every search. Lazily creates the
+  // iframe on first expand rather than loading every embeddable map up front.
+  utilitiesContent.addEventListener("click", (e) => {
+    const btn = e.target.closest(".toggle-map-btn");
+    if (!btn) return;
+    const container = document.getElementById(btn.dataset.target);
+    if (!container) return;
+    const isHidden = container.hidden;
+    container.hidden = !isHidden;
+    btn.textContent = isHidden ? "Hide live map ▴" : "View live map ▾";
+    if (isHidden && !container.dataset.loaded) {
+      container.dataset.loaded = "true";
+      const iframe = document.createElement("iframe");
+      iframe.src = btn.dataset.embedUrl;
+      iframe.loading = "lazy";
+      iframe.title = "Live outage map";
+      container.appendChild(iframe);
+    }
+  });
 
   function renderShelters(data) {
     sheltersContent.innerHTML = "";

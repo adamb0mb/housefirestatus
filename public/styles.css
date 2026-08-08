@@ -254,6 +254,26 @@ button {
 .provider-card .actions a:hover { background: #e6e2d8; }
 .provider-card .notes { font-size: 0.82rem; color: var(--muted); margin-top: 0.4rem; }
 
+.toggle-map-btn {
+  margin-top: 0.5rem;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--brand);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+}
+.toggle-map-btn:hover { background: #f1efe9; }
+.embedded-map {
+  margin-top: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 420px;
+}
+.embedded-map iframe { width: 100%; height: 100%; border: 0; display: block; }
+
 .fire-item, .evac-item, .shelter-item {
   border-left: 4px solid var(--brand);
   padding: 0.4rem 0 0.4rem 0.7rem;
@@ -292,4 +312,5 @@ button {
   .provider-card .actions a:hover { background: #352f26; }
   .emergency-bar { background: #3a2f10; color: #f3d98b; border-color: #5c4a17; }
   .suggestions li.active, .suggestions li:hover { background: #2a251f; }
+  .toggle-map-btn:hover { background: #2a251f; }
 }
