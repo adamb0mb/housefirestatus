@@ -21,3 +21,23 @@ run_worker_first = true
 
 [observability]
 enabled = true
+
+[vars]
+# Used to build absolute links (confirm/unsubscribe/status-page) in notification
+# emails sent from the scheduled() handler, which has no request context to infer
+# a URL from.
+PUBLIC_BASE_URL = "https://phillabaum.us/spokanefire"
+
+# Re-checks every confirmed subscription and emails whoever's status changed.
+# Once every 15 minutes — frequent enough during a fast-moving incident without
+# hammering upstream provider APIs.
+[triggers]
+crons = ["*/15 * * * *"]
+
+# Subscription storage — created via `wrangler d1 create housefirestatus-subscriptions`,
+# then schema applied via `wrangler d1 execute housefirestatus-subscriptions --remote
+# --file=worker/schema.sql`. Uncomment once the database_id below is filled in.
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "housefirestatus-subscriptions"
+# database_id = "TBD"

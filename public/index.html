@@ -53,6 +53,17 @@
   <section id="results" hidden>
     <div id="status-banner" class="status-banner" role="status"></div>
 
+    <div class="subscribe-box">
+      <form id="subscribe-form">
+        <label for="subscribe-email">Get an email if this status changes</label>
+        <div class="subscribe-row">
+          <input type="email" id="subscribe-email" name="email" placeholder="you@example.com" required />
+          <button type="submit" id="subscribe-btn">Notify me</button>
+        </div>
+        <p id="subscribe-message" class="subscribe-message" hidden></p>
+      </form>
+    </div>
+
     <div class="layout">
       <div id="map" aria-label="Map showing the address, evacuation zone, and fire perimeter"></div>
 

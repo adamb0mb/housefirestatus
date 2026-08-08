@@ -13,10 +13,15 @@
   const fireContent = document.getElementById("fire-content");
   const utilitiesContent = document.getElementById("utilities-content");
   const sheltersContent = document.getElementById("shelters-content");
+  const subscribeForm = document.getElementById("subscribe-form");
+  const subscribeEmailInput = document.getElementById("subscribe-email");
+  const subscribeBtn = document.getElementById("subscribe-btn");
+  const subscribeMessage = document.getElementById("subscribe-message");
 
   let map, addressMarker, evacLayer, perimeterLayer, nearbyFireLayer, sheltersLayer;
   let providersCache = null;
   let sheltersCache = null;
+  let currentGeo = null;
 
   function initMap() {
     map = L.map("map", { scrollWheelZoom: false }).setView([47.6588, -117.426], 10);
@@ -46,6 +51,17 @@
 
   async function fetchJson(url) {
     const resp = await fetch(url);
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Request failed (${resp.status})`);
+    return data;
+  }
+
+  async function postJson(url, body) {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(data.error || `Request failed (${resp.status})`);
     return data;
@@ -434,6 +450,8 @@
       const status = await fetchJson(`api/status?lat=${geo.lat}&lng=${geo.lng}`);
       await loadStaticData(status);
       resultsSection.hidden = false;
+      currentGeo = geo;
+      resetSubscribeForm();
       renderBanner(status);
       renderEvac(status);
       renderFires(status);
@@ -461,6 +479,50 @@
   function runSearchFromCoords(lat, lng) {
     runStatusForGeo({ lat, lng, matchedAddress: "Your current location" });
   }
+
+  // ---- Email subscribe (get notified when this address's status changes) ----
+  function resetSubscribeForm() {
+    subscribeMessage.hidden = true;
+    subscribeMessage.textContent = "";
+    subscribeMessage.className = "subscribe-message";
+    subscribeBtn.disabled = false;
+    subscribeBtn.textContent = "Notify me";
+  }
+
+  function showSubscribeMessage(text, ok) {
+    subscribeMessage.textContent = text;
+    subscribeMessage.className = `subscribe-message ${ok ? "ok" : "err"}`;
+    subscribeMessage.hidden = false;
+  }
+
+  subscribeForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentGeo) return;
+    const email = subscribeEmailInput.value.trim();
+    if (!email) return;
+    subscribeBtn.disabled = true;
+    subscribeBtn.textContent = "Submitting…";
+    try {
+      const result = await postJson("api/subscribe", {
+        email,
+        address: currentGeo.matchedAddress || input.value.trim(),
+        lat: currentGeo.lat,
+        lng: currentGeo.lng
+      });
+      if (result.alreadySubscribed) {
+        showSubscribeMessage("You're already subscribed for this address.", true);
+      } else if (result.resent) {
+        showSubscribeMessage("You already have a pending confirmation — we sent it again. Check your inbox.", true);
+      } else {
+        showSubscribeMessage("Check your email to confirm — nothing is sent until you click the link.", true);
+      }
+      subscribeBtn.textContent = "Notify me";
+    } catch (err) {
+      showSubscribeMessage(err.message || "Couldn't submit that. Please try again.", false);
+      subscribeBtn.disabled = false;
+      subscribeBtn.textContent = "Notify me";
+    }
+  });
 
   // ---- Address autocomplete (single-box flow: type, pick, done) ----
   let suggestItems = [];
@@ -604,5 +666,19 @@
     );
   });
 
+  // Notification emails link back here with ?lat=&lng=&address= (see
+  // worker/subscriptions.js statusPageLink) so clicking "View full details"
+  // re-runs the same check without the recipient having to retype the address.
+  function runDeepLinkIfPresent() {
+    const params = new URLSearchParams(window.location.search);
+    const lat = parseFloat(params.get("lat"));
+    const lng = parseFloat(params.get("lng"));
+    const address = params.get("address");
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (address) input.value = address;
+    runStatusForGeo({ lat, lng, matchedAddress: address || "This address" });
+  }
+
   initMap();
+  runDeepLinkIfPresent();
 })();
