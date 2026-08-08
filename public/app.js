@@ -138,6 +138,7 @@
     const actions = [];
     if (p.statusCheckUrl) actions.push(`<a href="${p.statusCheckUrl}" target="_blank" rel="noopener">Check status</a>`);
     if (p.outageMapUrl) actions.push(`<a href="${p.outageMapUrl}" target="_blank" rel="noopener">Outage map</a>`);
+    if (p.hotspotMapUrl) actions.push(`<a href="${p.hotspotMapUrl}" target="_blank" rel="noopener">Find free WiFi</a>`);
     if (p.reportOutagePhone) actions.push(`<a href="tel:${p.reportOutagePhone.replace(/[^\d+]/g, "")}">Call ${p.reportOutagePhone}</a>`);
     if (p.emergencyPhone) actions.push(`<a href="tel:${p.emergencyPhone.replace(/[^\d+]/g, "")}">Emergency: ${p.emergencyPhone}</a>`);
     return actions.join("");
@@ -214,11 +215,47 @@
     </div>`;
   }
 
+  // Washington DOH's active drinking-water alerts are system-name-level (Spokane
+  // County has dozens of small water purveyors, and DOH doesn't publish service-area
+  // boundaries), so this is regional context — "here's what's active nearby" — not a
+  // claim about the specific address's water system, unlike the power/internet blocks.
+  function renderWaterLiveBlock(water) {
+    if (!water || !water.available) {
+      return `<div class="live-status unknown">
+        <strong>Live advisory check unavailable right now</strong>
+        <p class="meta">Couldn't reach the WA Dept. of Health alert feed just now — use the links below to check directly.</p>
+      </div>`;
+    }
+    if (water.advisories.length === 0) {
+      return `<div class="live-status ok">
+        <strong>✓ No active boil-water or do-not-drink advisories in Spokane or Stevens County</strong>
+        <p class="meta">Checked live against the WA Dept. of Health statewide alert list.</p>
+      </div>`;
+    }
+    const items = water.advisories
+      .slice(0, 6)
+      .map((a) => {
+        const isWildfire = /wildfire|fire\b/i.test(a.comments || "");
+        return `
+      <div class="outage-item">
+        <div class="meta"><strong>${escapeHtml(a.systemName)}</strong> (${escapeHtml(a.county)} County) — ${escapeHtml(a.actionType)}${isWildfire ? " · wildfire-related" : ""}</div>
+        <div class="meta">Issued ${escapeHtml(a.dateIssued)}${a.phone ? ` · ${escapeHtml(a.phone)}` : ""}</div>
+      </div>`;
+      })
+      .join("");
+    return `<div class="live-status warn">
+      <strong>⚠ ${water.advisories.length} active water system alert${water.advisories.length === 1 ? "" : "s"} in Spokane/Stevens County</strong>
+      <p class="meta">Check if your specific water system (on your utility bill) is listed below — this isn't matched to your exact address.</p>
+      ${items}
+    </div>`;
+  }
+
   // Providers with a real live check, keyed by their id in worker/data.js, mapped to
   // a function that renders that check's result from the /api/status response.
   const LIVE_CHECK_RENDERERS = {
     "avista-electric": (status) => renderPowerLiveBlock(status.power),
-    "tds-telecom": (status) => renderTdsLiveBlock(status.internet?.tds)
+    "tds-telecom": (status) => renderTdsLiveBlock(status.internet?.tds),
+    "spokane-water": (status) => renderWaterLiveBlock(status.water)
   };
 
   function renderUtilities(providers, status) {

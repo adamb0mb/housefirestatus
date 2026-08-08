@@ -1,5 +1,6 @@
 import { PROVIDERS, SHELTERS, AUTHORITATIVE_LINKS } from "./data.js";
 import { getNearbyAvistaOutages } from "./kubra.js";
+import { getWaterAdvisories } from "./wadoh.js";
 
 const CENSUS_GEOCODE_URL = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
@@ -346,7 +347,8 @@ async function handleStatus(url, ctx) {
     nearbyFireGeoJson,
     avistaPower,
     tdsAtPointGeoJson,
-    tdsNearbyGeoJson
+    tdsNearbyGeoJson,
+    waterAdvisories
   ] = await Promise.all([
     queryArcGIS(SPOKANE_EVAC, {
       ...pointParams,
@@ -378,7 +380,8 @@ async function handleStatus(url, ctx) {
       units: "esriSRUnit_StatuteMile",
       outFields: tdsOutFields,
       resultRecordCount: "5"
-    })
+    }),
+    getWaterAdvisories(USER_AGENT, ctx).catch(() => ({ available: false, advisories: [] }))
   ]);
 
   const evacFeatures = [...decodeSpokaneEvacFeatures(spokaneEvacGeoJson).features, ...stevensEvacGeoJson.features];
@@ -460,6 +463,14 @@ async function handleStatus(url, ctx) {
         // Live from TDS's own public "OUTAGE_FOOTPRINT" ArcGIS layer.
         outages: tdsOutages
       }
+    },
+    water: {
+      // Live from WA Dept. of Health's public active drinking-water-alert list for
+      // Spokane & Stevens County — system-name-level, not address-matched (DOH
+      // doesn't publish per-system service-area boundaries), so this is regional
+      // context rather than a claim about this exact address's water system.
+      available: waterAdvisories.available,
+      advisories: waterAdvisories.advisories
     },
     generatedAt: new Date().toISOString()
   };

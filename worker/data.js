@@ -34,7 +34,9 @@ export const PROVIDERS = [
     name: "Comcast Xfinity",
     description: "Cable internet, TV, and phone provider in the Spokane metro area.",
     statusCheckUrl: "https://www.xfinity.com/support/status",
-    reportOutagePhone: "1-800-934-6489"
+    hotspotMapUrl: "https://finder.wifi.xfinity.com/",
+    reportOutagePhone: "1-800-934-6489",
+    notes: "Comcast opened 11,000+ public Xfinity WiFi hotspots across Spokane County for free use during this event — anyone can connect, not just Xfinity customers. Use the hotspot map to find one nearby."
   },
   {
     id: "charter-spectrum",
@@ -78,8 +80,9 @@ export const PROVIDERS = [
     categoryLabel: "Cellular",
     name: "Verizon",
     description: "Wireless carrier — cell towers can lose power or backhaul connectivity during wildfires.",
-    statusCheckUrl: "https://www.verizon.com/support/residential/verizon-outage-updates",
-    reportOutagePhone: "1-800-922-0204"
+    statusCheckUrl: "https://www.verizon.com/about/news/washington-wildfires-updates",
+    reportOutagePhone: "1-800-922-0204",
+    notes: "Linked page is Verizon's actively-updated response page for this specific event (free calls/text/data for Spokane County customers, device charging and Wi-Fi at Spokane stores), not their generic outage checker."
   },
   {
     id: "att-wireless",
@@ -87,8 +90,9 @@ export const PROVIDERS = [
     categoryLabel: "Cellular",
     name: "AT&T",
     description: "Wireless carrier — cell towers can lose power or backhaul connectivity during wildfires.",
-    statusCheckUrl: "https://www.att.com/outages/",
-    reportOutagePhone: "1-800-331-0500"
+    statusCheckUrl: "https://about.att.com/pages/disaster_relief/2026/wa-wildfires.html",
+    reportOutagePhone: "1-800-331-0500",
+    notes: "Linked page is AT&T's actively-updated response page for this specific event (per-site network status, mobile cell trucks deployed to Spokane County), not their generic outage checker."
   },
   {
     id: "tmobile-wireless",
@@ -96,8 +100,9 @@ export const PROVIDERS = [
     categoryLabel: "Cellular",
     name: "T-Mobile",
     description: "Wireless carrier — cell towers can lose power or backhaul connectivity during wildfires.",
-    statusCheckUrl: "https://www.t-mobile.com/coverage/network-status",
-    reportOutagePhone: "1-800-937-8997"
+    statusCheckUrl: "https://www.t-mobile.com/news/network/t-mobile-supports-spokane",
+    reportOutagePhone: "1-800-937-8997",
+    notes: "Linked page is T-Mobile's actively-updated response page for this specific event (per-site status, free T-Satellite/Starlink emergency texting enabled for Spokane & Stevens counties), not their generic coverage map."
   },
   {
     id: "spokane-water",
@@ -107,7 +112,7 @@ export const PROVIDERS = [
     description: "Water service and boil-water advisories are managed by whichever city, county, or private water district serves your specific address (Spokane County has dozens of small water districts).",
     statusCheckUrl: "https://my.spokanecity.org/publicworks/water/",
     countyStatusUrl: "https://www.spokanecounty.gov/",
-    notes: "After fire or evacuation, check for boil-water advisories before drinking tap water even if pressure has returned."
+    notes: "After fire or evacuation, check for boil-water advisories before drinking tap water even if pressure has returned. Live advisories below are from the Washington State Department of Health for the whole county — check if your specific water system (on your bill) is listed."
   }
 ];
 
