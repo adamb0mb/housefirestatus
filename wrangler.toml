@@ -4,7 +4,10 @@ compatibility_date = "2026-08-01"
 
 # Served both from its own workers.dev URL (root-level) and from
 # phillabaum.us/spokanefire (path-scoped route on a zone that's shared with
-# other Workers) — see PATH_PREFIX handling in worker/index.js.
+# other Workers) — see PATH_PREFIX handling in worker/index.js. Adding an
+# explicit `routes` entry makes wrangler disable workers_dev by default, so
+# it has to be turned back on explicitly to keep both URLs live.
+workers_dev = true
 routes = [
   { pattern = "phillabaum.us/spokanefire*", zone_name = "phillabaum.us" }
 ]
