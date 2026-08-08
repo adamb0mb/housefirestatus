@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Xfinity outage API — browser CORS test (debug)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
+  h1 { font-size: 1.3rem; }
+  .box { background: #f4f2ee; border: 1px solid #ddd6c8; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+  .box.warn { background: #fff6d9; border-color: #f0dd8f; }
+  label { font-weight: 600; display: block; margin-bottom: 0.3rem; }
+  input { width: 100%; padding: 0.5rem; font-size: 1rem; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; }
+  button { margin-top: 0.75rem; padding: 0.6rem 1.2rem; font-size: 1rem; font-weight: 600; background: #b3341c; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #log { background: #16140f; color: #d8d2c4; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.82rem; padding: 1rem; border-radius: 8px; white-space: pre-wrap; word-break: break-word; min-height: 120px; max-height: 60vh; overflow-y: auto; }
+  .step { color: #7fd0ff; }
+  .ok { color: #7fe08a; }
+  .fail { color: #ff8a80; }
+  .copy-btn { margin-top: 0.75rem; background: #444; }
+  footer { color: #777; font-size: 0.85rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+
+<h1>Xfinity outage API — browser CORS test</h1>
+
+<div class="box warn">
+  <strong>What this page does:</strong> tries to call Comcast's own outage-check
+  API (<code>api.sc.xfinity.com</code>) directly from your browser, the same
+  three-step flow their own statusmap page uses: get an anonymous session
+  token → address lookup → outage data. This page is <em>not</em> hosted on
+  xfinity.com, so the expectation going in is that the browser's CORS policy
+  will block it — Xfinity's session endpoint only allows requests originating
+  from <code>xfinity.com</code>/<code>www.xfinity.com</code> (checked via the
+  actual <code>Access-Control-Allow-Origin</code> response header beforehand).
+  This page exists to confirm that empirically instead of just asserting it,
+  and to show exactly how it fails if it does.
+</div>
+
+<label for="address">Test address</label>
+<input id="address" value="808 W Spokane Falls Blvd, Spokane, WA 99201" />
+<button id="run">Run test</button>
+<button id="copy" class="copy-btn" style="display:none">Copy log to clipboard</button>
+
+<h3>Log</h3>
+<div id="log">(not run yet)</div>
+
+<div class="box">
+  <strong>Also worth checking manually:</strong> open DevTools (F12 on
+  Windows/Linux, Cmd+Opt+I on Mac) → <strong>Network</strong> tab, click "Run
+  test" again, and look at the request to <code>api.sc.xfinity.com</code>. If
+  it shows red with "CORS error"/"blocked" in the status, that confirms a CORS
+  block — the request may have even reached Xfinity's server and gotten a real
+  response, but the browser hid it from this page's JavaScript. If it shows an
+  actual HTTP status code (200, 201, 403, etc.) rather than a blocked/failed
+  request, that's a different, more interesting result — screenshot it.
+</div>
+
+<footer>Debug page for housefirestatus.adam-c90.workers.dev — not part of the main app, not indexed.</footer>
+
+<script>
+(() => {
+  "use strict";
+  const logEl = document.getElementById("log");
+  const runBtn = document.getElementById("run");
+  const copyBtn = document.getElementById("copy");
+  const addressEl = document.getElementById("address");
+  let lines = [];
+
+  function ts() {
+    return new Date().toISOString().split("T")[1].replace("Z", "");
+  }
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function log(msg, cls) {
+    const safe = escapeHtml(msg);
+    const span = cls ? `<span class="${cls}">${safe}</span>` : safe;
+    lines.push(`[${ts()}] ${msg}`);
+    logEl.innerHTML += (logEl.innerHTML === "(not run yet)" ? "" : "\n") + `[${ts()}] ${span}`;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function reset() {
+    lines = [];
+    logEl.innerHTML = "";
+  }
+
+  function decodeJwtPayload(token) {
+    try {
+      const part = token.split(".")[1];
+      const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
+      return JSON.parse(json);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  class SkipError extends Error {}
+
+  async function step(name, fn) {
+    log(`--- ${name} ---`, "step");
+    try {
+      const result = await fn();
+      log(`OK: ${typeof result === "string" ? result : JSON.stringify(result)}`, "ok");
+      return { ok: true, result };
+    } catch (err) {
+      if (err instanceof SkipError) {
+        log(`SKIPPED: ${err.message}`, "fail");
+        return { ok: false, error: err };
+      }
+      log(`FAILED: ${err.name}: ${err.message}`, "fail");
+      log(
+        `(Note: browsers deliberately hide the real reason for cross-origin failures from JavaScript. ` +
+        `"TypeError: Failed to fetch" / "Load failed" here almost always means a CORS block or network-level ` +
+        `refusal, not a normal HTTP error — an actual 4xx/5xx response would show a status code instead.)`,
+        "fail"
+      );
+      return { ok: false, error: err };
+    }
+  }
+
+  async function run() {
+    reset();
+    runBtn.disabled = true;
+    copyBtn.style.display = "none";
+    log(`Page origin: ${location.origin}`);
+    log(`Target address: ${addressEl.value}`);
+
+    let token = null;
+    const sessionStep = await step("1. POST https://api.sc.xfinity.com/outagedata/session", async () => {
+      const resp = await fetch("https://api.sc.xfinity.com/outagedata/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // credentials omitted deliberately — this is an anonymous session endpoint,
+        // sending cookies cross-site would only add another way for it to be blocked.
+      });
+      const t = resp.headers.get("x-outagedataservice-token");
+      if (!t) {
+        throw new Error(`No token in response (HTTP ${resp.status}). Headers readable: ${[...resp.headers.keys()].join(", ") || "(none — likely CORS-restricted)"}`);
+      }
+      token = t;
+      const payload = decodeJwtPayload(t);
+      return `HTTP ${resp.status}, got token (session: ${payload?.sessionId ?? "?"}, expires: ${payload?.exp ? new Date(payload.exp * 1000).toISOString() : "?"})`;
+    });
+
+    const typeaheadStep = await step("2. GET https://api.sc.xfinity.com/address/typeahead", async () => {
+      if (!token) throw new SkipError("no token from step 1");
+      const url = new URL("https://api.sc.xfinity.com/address/typeahead");
+      url.searchParams.set("text", addressEl.value);
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const bodyText = await resp.text().catch(() => "(could not read body)");
+      return `HTTP ${resp.status}: ${bodyText.slice(0, 300)}`;
+    });
+
+    log("--- Done ---", "step");
+    if (!sessionStep.ok) {
+      log("Session step failed, so the address lookup and outage-data steps never had a token to use.", "fail");
+    }
+    copyBtn.style.display = "inline-block";
+    runBtn.disabled = false;
+  }
+
+  runBtn.addEventListener("click", run);
+  copyBtn.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(lines.join("\n"));
+    copyBtn.textContent = "Copied!";
+    setTimeout(() => (copyBtn.textContent = "Copy log to clipboard"), 1500);
+  });
+})();
+</script>
+
+</body>
+</html>
