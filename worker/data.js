@@ -22,6 +22,33 @@ export const PROVIDERS = [
     notes: "Avista does not publish a public real-time outage API, so live per-address status must be checked directly on their outage map or by phone/text."
   },
   {
+    id: "tds-telecom",
+    category: "internet_phone",
+    categoryLabel: "Internet & Home Phone",
+    name: "TDS Telecom",
+    description: "Fiber/DSL internet and landline telephone provider in parts of the Spokane area.",
+    statusCheckUrl: "https://www.tdstelecom.com/support/outages.html",
+    reportOutagePhone: "1-888-225-5837"
+  },
+  {
+    id: "quantum-fiber",
+    category: "internet_phone",
+    categoryLabel: "Internet & Home Phone",
+    name: "Quantum Fiber (Lumen/CenturyLink)",
+    description: "Fiber/DSL internet and landline telephone provider in parts of the Spokane area.",
+    statusCheckUrl: "https://www.centurylink.com/home/help/account/outage-check.html",
+    reportOutagePhone: "1-800-244-1111"
+  },
+  {
+    id: "ziply-fiber",
+    category: "internet_phone",
+    categoryLabel: "Internet & Home Phone",
+    name: "Ziply Fiber",
+    description: "Fiber internet and landline telephone provider serving parts of the Inland Northwest.",
+    statusCheckUrl: "https://ziplyfiber.com/support",
+    reportOutagePhone: "1-866-699-4759"
+  },
+  {
     id: "avista-gas",
     category: "gas",
     categoryLabel: "Natural Gas",
@@ -51,33 +78,6 @@ export const PROVIDERS = [
     description: "Cable internet, TV, and phone provider serving parts of Spokane County.",
     statusCheckUrl: "https://www.spectrum.com/support/internet/service-outage",
     reportOutagePhone: "1-833-267-6094"
-  },
-  {
-    id: "tds-telecom",
-    category: "internet_phone",
-    categoryLabel: "Internet & Home Phone",
-    name: "TDS Telecom",
-    description: "Fiber/DSL internet and landline telephone provider in parts of the Spokane area.",
-    statusCheckUrl: "https://www.tdstelecom.com/support/outages.html",
-    reportOutagePhone: "1-888-225-5837"
-  },
-  {
-    id: "quantum-fiber",
-    category: "internet_phone",
-    categoryLabel: "Internet & Home Phone",
-    name: "Quantum Fiber (Lumen/CenturyLink)",
-    description: "Fiber/DSL internet and landline telephone provider in parts of the Spokane area.",
-    statusCheckUrl: "https://www.centurylink.com/home/help/account/outage-check.html",
-    reportOutagePhone: "1-800-244-1111"
-  },
-  {
-    id: "ziply-fiber",
-    category: "internet_phone",
-    categoryLabel: "Internet & Home Phone",
-    name: "Ziply Fiber",
-    description: "Fiber internet and landline telephone provider serving parts of the Inland Northwest.",
-    statusCheckUrl: "https://ziplyfiber.com/support",
-    reportOutagePhone: "1-866-699-4759"
   },
   {
     id: "verizon-wireless",
