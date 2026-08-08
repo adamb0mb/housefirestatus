@@ -34,10 +34,8 @@ PUBLIC_BASE_URL = "https://phillabaum.us/spokanefire"
 [triggers]
 crons = ["*/15 * * * *"]
 
-# Subscription storage — created via `wrangler d1 create housefirestatus-subscriptions`,
-# then schema applied via `wrangler d1 execute housefirestatus-subscriptions --remote
-# --file=worker/schema.sql`. Uncomment once the database_id below is filled in.
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "housefirestatus-subscriptions"
-# database_id = "TBD"
+# Subscription storage.
+[[d1_databases]]
+binding = "DB"
+database_name = "housefirestatus-subscriptions"
+database_id = "7743ad9d-0b40-42e1-ae40-1f4e4622479d"
