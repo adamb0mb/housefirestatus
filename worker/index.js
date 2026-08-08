@@ -5,6 +5,12 @@ import { getWaterAdvisories } from "./wadoh.js";
 const CENSUS_GEOCODE_URL = "https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
 
+// This app only has evacuation/fire/utility data for Spokane & Stevens counties, so
+// geocoding is hard-restricted (bounded=1, not just biased) to a box comfortably
+// covering both — west/east/north/south padded a bit past each county's actual
+// extent. Format is Nominatim's viewbox: "<west_lon>,<north_lat>,<east_lon>,<south_lat>".
+const SERVICE_AREA_VIEWBOX = "-118.5,49.05,-116.7,47.0";
+
 // Spokane County's own address point layer, used as a secondary geocode check /
 // sanity check for addresses the Census geocoder can't match (new subdivisions,
 // rebuilds on a cleared lot, etc).
@@ -145,7 +151,7 @@ async function geocodeWithCensus(address) {
 async function geocodeWithNominatim(address) {
   const url = `${NOMINATIM_URL}?q=${encodeURIComponent(
     address
-  )}&format=json&addressdetails=1&countrycodes=us&limit=1`;
+  )}&format=json&addressdetails=1&countrycodes=us&limit=1&viewbox=${SERVICE_AREA_VIEWBOX}&bounded=1`;
   const resp = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
   if (!resp.ok) return null;
   const data = await resp.json();
@@ -210,11 +216,12 @@ async function handleSuggest(url, ctx) {
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
 
-  // Biased (not restricted — bounded=0) toward the Spokane region so a partial
-  // address like "123 main" surfaces local candidates first.
+  // Hard-restricted (bounded=1) to the Spokane/Stevens County service area — this
+  // app has no data for anywhere else, so a same-named street elsewhere in the
+  // country shouldn't be suggested at all, not just deprioritized.
   const nomUrl = `${NOMINATIM_URL}?q=${encodeURIComponent(
     q
-  )}&format=json&addressdetails=1&countrycodes=us&limit=10&viewbox=-118.3,48.1,-116.8,47.0&bounded=0`;
+  )}&format=json&addressdetails=1&countrycodes=us&limit=10&viewbox=${SERVICE_AREA_VIEWBOX}&bounded=1`;
 
   let suggestions = [];
   try {

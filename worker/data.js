@@ -27,7 +27,7 @@ export const PROVIDERS = [
     categoryLabel: "Internet & Home Phone",
     name: "TDS Telecom",
     description: "Fiber/DSL internet and landline telephone provider in parts of the Spokane area.",
-    statusCheckUrl: "https://www.tdstelecom.com/support/outages.html",
+    statusCheckUrl: "https://www.tdstelecom.com/support/outage.html",
     reportOutagePhone: "1-888-225-5837"
   },
   {
@@ -36,7 +36,7 @@ export const PROVIDERS = [
     categoryLabel: "Internet & Home Phone",
     name: "Quantum Fiber (Lumen/CenturyLink)",
     description: "Fiber/DSL internet and landline telephone provider in parts of the Spokane area.",
-    statusCheckUrl: "https://www.centurylink.com/home/help/account/outage-check.html",
+    statusCheckUrl: "https://www.quantumfiber.com/outagetool",
     reportOutagePhone: "1-800-244-1111"
   },
   {
@@ -65,8 +65,8 @@ export const PROVIDERS = [
     categoryLabel: "Internet & Cable TV",
     name: "Comcast Xfinity",
     description: "Cable internet, TV, and phone provider in the Spokane metro area.",
-    statusCheckUrl: "https://www.xfinity.com/support/status",
-    hotspotMapUrl: "https://finder.wifi.xfinity.com/",
+    statusCheckUrl: "https://www.xfinity.com/support/statusmap",
+    hotspotMapUrl: "https://www.xfinity.com/wifi",
     reportOutagePhone: "1-800-934-6489",
     notes: "Comcast opened 11,000+ public Xfinity WiFi hotspots across Spokane County for free use during this event — anyone can connect, not just Xfinity customers. Use the hotspot map to find one nearby."
   },
@@ -76,7 +76,7 @@ export const PROVIDERS = [
     categoryLabel: "Internet & Cable TV",
     name: "Charter Spectrum",
     description: "Cable internet, TV, and phone provider serving parts of Spokane County.",
-    statusCheckUrl: "https://www.spectrum.com/support/internet/service-outage",
+    statusCheckUrl: "https://www.spectrum.net/outage-map",
     reportOutagePhone: "1-833-267-6094"
   },
   {
